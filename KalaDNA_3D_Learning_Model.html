@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KALA-DNA — 3D Learning Model</title>
+<style>
+:root{color-scheme:light dark;--bg:#f5f3ef;--fg:#1d1d1f;--mut:#6e6e73;--glass:rgba(255,255,255,.68);--line:rgba(0,0,0,.09);--acc:#0a84a6;--gold:#c7952b;--sh:0 8px 30px rgba(0,0,0,.08);--ok:#1e9e4a;--warn:#e39b00;--bad:#d93025}
+@media(prefers-color-scheme:dark){:root{--bg:#161618;--fg:#f5f5f7;--mut:#98989d;--glass:rgba(38,38,42,.68);--line:rgba(255,255,255,.1);--acc:#4cc3e3;--gold:#e0b04a;--sh:0 8px 30px rgba(0,0,0,.4)}}
+*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:radial-gradient(120% 90% at 50% 15%,color-mix(in srgb,var(--bg),#fff 22%),var(--bg));color:var(--fg);font:14px/1.45 -apple-system,"SF Pro Text",Inter,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+#stage,#labels{position:fixed;inset:0}#labels{pointer-events:none}#stage canvas{display:block;outline:none}
+.tag{position:absolute;left:0;top:0;padding:3px 9px;border-radius:9px;background:var(--glass);backdrop-filter:blur(12px);border:1px solid var(--line);font-size:11px;white-space:nowrap}.tag.big{font-size:12px;font-weight:600}
+nav{position:fixed;top:0;left:0;right:0;height:52px;display:flex;align-items:center;gap:22px;padding:0 24px;background:var(--glass);backdrop-filter:blur(20px) saturate(1.6);border-bottom:1px solid var(--line);z-index:5}
+nav b{letter-spacing:.18em;font-size:12px}nav a{color:var(--mut);font-size:13px;cursor:pointer;transition:color .2s}nav a:hover,nav a.on{color:var(--fg)}nav i{flex:1}nav em{font-style:normal;font-size:12px;color:var(--mut)}nav .ok{color:var(--ok)}
+.bar{position:fixed;top:64px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:4}
+button{font:inherit;border:1px solid var(--line);background:var(--glass);backdrop-filter:blur(14px);color:var(--fg);padding:7px 14px;border-radius:980px;cursor:pointer;transition:all .2s}button:hover{background:var(--fg);color:var(--bg)}button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.panel{position:fixed;z-index:4;background:var(--glass);backdrop-filter:blur(24px) saturate(1.5);border:1px solid var(--line);border-radius:20px;box-shadow:var(--sh);padding:14px 16px;width:290px;animation:in .4s ease both}.panel.hidden{display:none}@keyframes in{from{opacity:0;transform:translateY(6px)}}
+summary{cursor:pointer;font-weight:600;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);list-style:none}
+#ctl{left:20px;top:72px}#guru{right:20px;top:72px;width:320px;max-height:calc(100vh - 92px);overflow:auto}#info{left:20px;bottom:20px}
+label{display:block;margin-top:11px;font-size:12px;color:var(--mut)}label output{float:right;color:var(--fg);font-variant-numeric:tabular-nums}label.chk{display:flex;gap:8px;align-items:center;color:var(--fg)}
+input[type=range]{width:100%;-webkit-appearance:none;appearance:none;height:4px;border-radius:2px;background:var(--line);margin:9px 0 2px;outline:none}input[type=range]:disabled{opacity:.4}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#fff;border:1px solid var(--line);box-shadow:0 1px 4px rgba(0,0,0,.35);cursor:pointer}
+input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:#fff;border:1px solid var(--line);cursor:pointer}
+.row{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}.row button{padding:5px 11px;font-size:12px}
+small,.k{color:var(--mut);font-size:10px;letter-spacing:.06em;text-transform:uppercase}.sec{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+#score{font-size:34px;font-weight:600;font-variant-numeric:tabular-nums}#cue{display:flex;gap:10px;align-items:flex-start;margin-top:8px;font-size:15px;font-weight:500;min-height:44px}
+#dot{flex:none;width:12px;height:12px;border-radius:50%;margin-top:5px;background:var(--ok);box-shadow:0 0 0 4px color-mix(in srgb,currentColor,transparent 80%);transition:background .3s}
+#hap{font-size:11px;color:var(--mut);margin-top:2px}#hap.pulse{color:var(--warn);animation:pl .5s infinite alternate}@keyframes pl{to{opacity:.35}}
+canvas.c{width:100%;display:block;margin-top:6px}.tabs{display:flex;gap:5px;margin-top:6px}.tabs button{padding:3px 10px;font-size:11px}
+#hist{display:flex;gap:3px;align-items:flex-end;height:44px;margin-top:6px}#hist u{flex:1;border-radius:3px 3px 0 0;min-height:2px;transition:height .4s}
+#steps{position:fixed;bottom:64px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:4}#steps span{padding:6px 14px;border-radius:980px;background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(14px);color:var(--mut);font-size:12px;transition:all .3s}#steps span.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+#flow{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);display:flex;gap:9px;align-items:center;padding:8px 16px;border-radius:980px;background:var(--glass);backdrop-filter:blur(16px);border:1px solid var(--line);color:var(--mut);font-size:12px;z-index:4;white-space:nowrap}#flow span{transition:all .3s}#flow span.on{color:var(--acc);font-weight:600;transform:translateY(-1px)}
+#info h3{margin:0 0 6px;font-size:15px}#info p{margin:3px 0;display:flex;justify-content:space-between;gap:14px;font-size:12px;color:var(--mut)}#info p b{color:var(--fg);font-weight:500;text-align:right}
+#about{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.35);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center}#about.show{display:flex}#about>div{background:var(--bg);border:1px solid var(--line);border-radius:22px;max-width:760px;max-height:84vh;overflow:auto;padding:26px 30px;box-shadow:var(--sh)}
+#about h2{margin:0 0 4px;font-size:22px}#about h4{margin:16px 0 4px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}#about p,#about li{font-size:13px;margin:4px 0}#about ul{padding-left:18px}
+#err{position:fixed;left:50%;top:60px;transform:translateX(-50%);z-index:40;max-width:80vw;padding:10px 16px;border-radius:12px;background:#d93025;color:#fff;font-size:13px}#st{position:fixed;left:20px;top:58px;z-index:20;font:10px monospace;color:var(--mut)}
+@media(max-width:1000px){.panel{width:250px}#guru{width:270px}nav a{display:none}#flow{display:none}}
+@media(max-width:700px){#ctl{top:auto;bottom:70px;left:10px;right:10px;width:auto;max-height:38vh;overflow:auto}#guru{top:auto;bottom:130px;left:10px;right:10px;width:auto}#info,#steps{display:none}}
+
+</style></head>
+<body><div id="stage"></div><div id="labels"></div>
+<nav><b>KALA-DNA</b><a id="t-model" class="on">Learning Model</a><a id="t-tool">Smart Tool</a><a id="t-dna">Fingerprint</a><a id="t-about">Impact</a><i></i><em>● SIMULATION</em><em class="ok">BLE connected</em></nav>
+<div class="bar"><button id="b-insp">Inspect Smart Tool</button><button id="b-expl">Exploded View</button><button id="b-reset">Reset View</button></div>
+<details class="panel" id="ctl" open><summary>Apprentice · new generation</summary>
+<label>Grip pressure <output id="o-p"></output><input id="s-p" type="range" min=".4" max="1.6" step=".01"></label>
+<label>Tool angle offset <output id="o-a"></output><input id="s-a" type="range" min="-25" max="25" step="1"></label>
+<label>Stroke speed <output id="o-s"></output><input id="s-s" type="range" min=".4" max="1.6" step=".01"></label>
+<label>Stroke cycle time <output id="o-t"></output><input id="s-t" type="range" min="2" max="7" step=".1"></label>
+<label class="chk"><input type="checkbox" id="c-obs"> Observe mode (watch the master)</label>
+<label class="chk"><input type="checkbox" id="c-auto"> Guided practice (apprentice improves)</label>
+<div class="row"><button id="b-beg">Start as beginner</button><button id="b-rst">Reset attempt</button></div>
+<small style="display:block;margin-top:12px">Demo craft: wood-carving chisel stroke · simulated data</small></details>
+<details class="panel" id="guru" open><summary>Digital Guru</summary>
+<div id="cue"><i id="dot"></i><div><span id="cue-t">—</span><div id="hap">Haptic: idle</div></div></div>
+<div class="sec"><small>Technique match</small><div><span id="score">100</span> <span class="k">/ 100 · <span id="strokes">0 strokes</span></span></div><div id="hist"></div></div>
+<div class="sec"><small>Signals · master vs apprentice</small><div class="tabs" id="tabs"><button data-c="p" class="on">Pressure</button><button data-c="a">Angle</button><button data-c="s">Speed</button></div><canvas class="c" id="curve" width="560" height="200" style="height:100px"></canvas></div>
+<div class="sec"><small>Technique fingerprint</small><canvas class="c" id="radar" width="360" height="300" style="height:150px"></canvas></div></details>
+<div class="panel hidden" id="info"></div>
+<div id="steps"><span>1 Observe</span><span>2 Practice</span><span>3 Correct</span><span>4 Mastery</span></div>
+<div id="flow"><span>Master Artisan</span>›<span>Smart Tool</span>›<span>ESP32</span>›<span>AI Engine</span>›<span>Feedback + Dashboard</span></div>
+<div id="about"><div><h2>KALA-DNA — Smart Heritage Skill Preservation</h2><p><b>We preserve the skill, not just the artifact.</b> SIH 2026 · SIH26214 · Heritage &amp; Culture · Hardware · Team Techno Spidey</p>
+<h4>Solution</h4><p>A craftsperson's own tool becomes a sensing device: an IMU, pressure sensor and force sensor with an ESP32 capture hand pressure, tool angle, speed and timing. These form a <b>Technique Fingerprint</b>. A learner uses the same instrumented tool and is compared with the master in real time; vibration, LED and on-screen cues correct the technique (Digital Guru mode).</p>
+<h4>Impact</h4><ul><li><b>Social:</b> preserves craftsmanship and moves knowledge from master artisans to younger learners.</li><li><b>Economic:</b> helps artisans retain and monetise specialised skills and opens paths for new learners.</li><li><b>Environmental:</b> supports local, traditional production and can cut material waste while learning.</li></ul>
+<h4>Roadmap</h4><p>Camera pose estimation and AR overlay, marketplace and certification. The demo focuses on the Smart Tool, Technique Fingerprint and Haptic Apprentice mode.</p>
+<h4>Research basis</h4><ul><li>UNESCO: traditional craftsmanship and transmission of intangible cultural heritage</li><li>Diaz Mendoza et al. (2023), Sustainability: technologies for heritage preservation</li><li>Vibrotactile feedback in virtual motor learning (2022 review)</li><li>Petancevski et al. (2022): augmented feedback and motor skill learning</li><li>Bateman et al. (2026): XR training and psychomotor skills</li></ul>
+<div class="row"><button id="x-about">Close</button></div></div></div>
+<script type="text/plain" id="app">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+const $ = (s) => document.querySelector(s), cl = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+
+// ================= TECHNIQUE FINGERPRINT MODEL (simulated master + apprentice) =================
+const MT = 4; // master stroke cycle (s)
+const mP = (t) => 0.15 + 0.7 * Math.exp(-(((t - 0.5) / 0.18) ** 2)), mA = (t) => 38 + 12 * Math.sin(Math.PI * t), mS = (t) => 0.2 + 0.7 * Math.pow(Math.sin(Math.PI * t), 1.5);
+const S = { pAmt: 1, aOff: 0, sGain: 1, period: MT, phaseM: 0, phaseL: 0, score: 100, dev: { p: 0, a: 0, s: 0, t: 0 }, devS: { p: 0, a: 0, s: 0, t: 0 }, attempts: [], acc: [], streak: 0, carve: 0, observe: false, auto: false, frozen: false, ch: 'p', samples: 0, cue: { txt: '', on: false }, expl: 0 };
+const lP = (t) => cl(mP(t) * S.pAmt, 0, 1.4), lA = (t) => mA(t) + S.aOff, lS = (t) => mS(t) * S.sGain;
+function endStroke() {
+  const q = S.acc.length ? S.acc.reduce((a, b) => a + b, 0) / S.acc.length : S.score; S.acc = [];
+  S.attempts.push(Math.round(q)); if (S.attempts.length > 14) S.attempts.shift(); S.streak = q >= 85 ? S.streak + 1 : 0; S.carve = Math.min(1, S.carve + (q / 100) * 0.12);
+}
+function updateModel(dt) {
+  S.phaseM = (S.phaseM + dt / MT) % 1;
+  if (S.observe) { S.pAmt = 1; S.aOff = 0; S.sGain = 1; S.period = MT; S.phaseL = S.phaseM; }
+  else {
+    if (S.auto) { const r = Math.min(1, dt * 0.12); S.pAmt += (1 - S.pAmt) * r; S.aOff += -S.aOff * r; S.sGain += (1 - S.sGain) * r; S.period += (MT - S.period) * r; }
+    S.phaseL += dt / S.period; if (S.phaseL >= 1) { S.phaseL -= 1; endStroke(); }
+  }
+  const t = S.phaseL, d = S.dev;
+  d.p = cl(Math.abs(S.pAmt - 1) / 0.5); d.a = cl(Math.abs(S.aOff) / 20); d.s = cl(Math.abs(S.sGain - 1) / 0.5); d.t = cl(Math.abs(S.period - MT) / 3);
+  for (const k in d) S.devS[k] += (d[k] - S.devS[k]) * Math.min(1, dt * 3);
+  const inst = cl(100 * (1 - 1.15 * (0.3 * d.p + 0.25 * d.a + 0.25 * d.s + 0.2 * d.t)), 0, 100);
+  S.score += (inst - S.score) * Math.min(1, dt * 3); S.acc.push(S.score); S.samples += dt * 50;
+  // Digital Guru cue: worst channel first
+  const c = [['p', d.p], ['a', d.a], ['s', d.s], ['t', d.t]].sort((x, y) => y[1] - x[1])[0];
+  if (c[1] < 0.12) S.cue = { txt: S.score >= 85 ? 'Matching the master’s fingerprint — hold this technique.' : 'Almost there — keep the rhythm steady.', on: false };
+  else S.cue = { on: true, txt: { p: S.pAmt > 1 ? 'Ease your grip — pressure is above the master.' : 'Press a little firmer through the cut.',
+    a: S.aOff > 0 ? `Lower the tool angle by about ${Math.round(Math.abs(S.aOff))}°.` : `Raise the tool angle by about ${Math.round(Math.abs(S.aOff))}°.`,
+    s: S.sGain > 1 ? 'Slow the stroke — you are moving too fast.' : 'Move a little faster through the stroke.',
+    t: S.period > MT ? `Speed up your rhythm — ${S.period.toFixed(1)} s vs master ${MT.toFixed(1)} s.` : `Slow your rhythm — ${S.period.toFixed(1)} s vs master ${MT.toFixed(1)} s.` }[c[0]] };
+}
+
+// ================= 3D SCENE =================
+const host = $('#stage'), labelsHost = $('#labels');
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.toneMapping = THREE.ACESFilmicToneMapping; host.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+const cam = new THREE.PerspectiveCamera(38, 1, 0.05, 60), V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+const HOME = { pos: V3(0, 2.1, 5.4), target: V3(0, 0.95, 0) }; cam.position.copy(HOME.pos);
+const controls = new OrbitControls(cam, renderer.domElement); controls.enableDamping = true; controls.dampingFactor = 0.06; controls.target.copy(HOME.target); controls.minDistance = 0.5; controls.maxDistance = 10; controls.maxPolarAngle = Math.PI * 0.495;
+const key = new THREE.DirectionalLight(0xfff4e6, 2.2); key.position.set(3, 5, 4); key.castShadow = true; key.shadow.mapSize.set(2048, 2048);
+Object.assign(key.shadow.camera, { left: -4, right: 4, top: 3, bottom: -3, near: 1, far: 14 }); key.shadow.camera.updateProjectionMatrix(); key.shadow.radius = 4; key.shadow.bias = -0.0004;
+const fill = new THREE.DirectionalLight(0xdfe8ff, 0.5); fill.position.set(-4, 2, 3); const rim = new THREE.DirectionalLight(0xffffff, 0.7); rim.position.set(0, 3, -5); scene.add(key, fill, rim);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.ShadowMaterial({ opacity: 0.22 })); floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+
+function woodTex(base) {
+  const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'); g.fillStyle = base; g.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 90; i++) { g.strokeStyle = `rgba(${40 + Math.random() * 30 | 0},${20 + Math.random() * 20 | 0},10,${0.08 + Math.random() * 0.15})`; g.lineWidth = 1 + Math.random() * 2; g.beginPath(); const x = Math.random() * 256; g.moveTo(x, 0); g.bezierCurveTo(x + 12 * Math.random(), 80, x - 12 * Math.random(), 170, x + 6 * Math.random(), 256); g.stroke(); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
+}
+const std = (o) => new THREE.MeshStandardMaterial(o);
+const M = { handle: std({ map: woodTex('#7a4a28'), roughness: 0.55 }), bench: std({ map: woodTex('#5b3a22'), roughness: 0.7 }), block: std({ map: woodTex('#c9a56b'), roughness: 0.75 }),
+  steel: std({ color: 0xd7dadd, metalness: 1, roughness: 0.22 }), brass: std({ color: 0xc9a24a, metalness: 1, roughness: 0.3 }), dark: std({ color: 0x18191b, roughness: 0.7 }), alu: std({ color: 0xc4c7cc, metalness: 0.9, roughness: 0.38 }),
+  pcb: std({ color: 0x0d3a66, roughness: 0.45 }), pcb2: std({ color: 0x5a2d82, roughness: 0.45 }), gold: std({ color: 0xd4af37, metalness: 1, roughness: 0.3 }), batt: std({ color: 0x33363b, roughness: 0.6 }) };
+const mk = (geo, m, x, y, z, p) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = o.receiveShadow = true; if (p) p.add(o); return o; };
+const B = (w, h, d) => new THREE.BoxGeometry(w, h, d), CY = (r, h) => new THREE.CylinderGeometry(r, r, h, 24);
+
+// ---- the Smart Tool: chisel + clip-on sensor module (ESP32, IMU, FSR pads, force sensor, motor, LED ring) ----
+function buildTool(pre, ghost) {
+  const g = new THREE.Group(), P = {}, ledMat = std({ color: 0x222222, emissive: 0x1e9e4a, emissiveIntensity: 1.6, roughness: 0.4 });
+  const part = (id, ex) => { const w = new THREE.Group(); w.userData = { id: pre + id, ex: V3(...ex) }; g.add(w); P[id] = w; return w; };
+  let p = part('blade', [0, -0.07, 0]); mk(B(0.007, 0.2, 0.032), M.steel, 0, 0.1, 0, p); mk(B(0.009, 0.014, 0.032), M.alu, 0, 0.005, 0, p); mk(CY(0.017, 0.03), M.brass, 0, 0.215, 0, p);
+  p = part('force', [0, -0.03, 0]); mk(CY(0.021, 0.005), M.dark, 0, 0.2325, 0, p); mk(CY(0.0222, 0.0012), M.gold, 0, 0.2325, 0, p);
+  p = part('handle', [0, 0.02, 0]); mk(new THREE.LatheGeometry([[0, 0.235], [0.019, 0.235], [0.021, 0.26], [0.025, 0.34], [0.027, 0.42], [0.023, 0.5], [0, 0.5]].map((a) => new THREE.Vector2(a[0], a[1])), 32), M.handle, 0, 0, 0, p);
+  p = part('fsr', [0, 0, 0.06]); [0.27, 0.3].forEach((y) => { const a = mk(CY(0.011, 0.004), M.dark, 0, y, 0.025, p); a.rotation.x = Math.PI / 2; const b = mk(CY(0.006, 0.0012), M.gold, 0, y, 0.0272, p); b.rotation.x = Math.PI / 2; });
+  p = part('mount', [0, 0, 0.07]); mk(B(0.05, 0.15, 0.005), M.alu, 0, 0.375, 0.033, p); mk(B(0.03, 0.045, 0.008), M.batt, 0, 0.33, 0.039, p);
+  p = part('imu', [0, 0, 0.11]); mk(B(0.022, 0.022, 0.004), M.pcb2, 0, 0.375, 0.0375, p); mk(B(0.008, 0.008, 0.003), M.dark, 0, 0.375, 0.041, p);
+  p = part('esp32', [0, 0.02, 0.15]); mk(B(0.032, 0.06, 0.004), M.pcb, 0, 0.43, 0.0375, p); mk(B(0.014, 0.02, 0.004), M.steel, 0, 0.44, 0.041, p); mk(B(0.03, 0.008, 0.001), M.gold, 0, 0.455, 0.04, p); mk(B(0.009, 0.006, 0.005), M.steel, 0, 0.4, 0.038, p);
+  p = part('motor', [0, 0.03, -0.06]); const mo = mk(CY(0.009, 0.004), M.steel, 0, 0.45, -0.027, p); mo.rotation.x = Math.PI / 2; mk(B(0.01, 0.004, 0.001), M.dark, 0, 0.45, -0.0295, p);
+  p = part('led', [0, 0.07, 0]); const ring = mk(new THREE.TorusGeometry(0.026, 0.0035, 12, 48), ledMat, 0, 0.488, 0, p); ring.rotation.x = Math.PI / 2;
+  const w = new THREE.Group(); g.add(w); P.wires = w;
+  [[[0, 0.27, 0.03], [0.018, 0.3, 0.034], [0.018, 0.36, 0.042], [0, 0.4, 0.04], 0xc0392b], [[0, 0.3, 0.03], [-0.018, 0.33, 0.034], [-0.018, 0.38, 0.042], [0, 0.415, 0.04], 0x2f6fdb], [[0, 0.45, -0.03], [0.03, 0.45, -0.02], [0.03, 0.44, 0.02], [0, 0.43, 0.04], 0xd9a21b]].forEach((c) => {
+    const pts = c.slice(0, 4).map((a) => V3(...a)); w.add(mk(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 24, 0.0015, 6), std({ color: c[4], roughness: 0.5 }), 0, 0, 0)); });
+  if (ghost) { const gm = std({ color: 0xf2c14e, transparent: true, opacity: 0.3, depthWrite: false, roughness: 0.4, emissive: 0x5a4310 }); g.traverse((o) => { if (o.isMesh) { o.material = gm; o.castShadow = false; } }); }
+  scene.add(g); return { g, P, ledMat };
+}
+const BX = { m: -1.5, l: 1.5 }, BT = 0.82;
+function bench(x) {
+  const g = new THREE.Group(); g.position.x = x; scene.add(g);
+  mk(new RoundedBoxGeometry(1.7, 0.08, 1, 4, 0.015), M.bench, 0, 0.66, 0, g); [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([a, b]) => mk(CY(0.04, 0.62), M.dark, a * 0.75, 0.31, b * 0.4, g));
+  mk(new RoundedBoxGeometry(1, 0.12, 0.4, 3, 0.01), M.block, 0, 0.76, 0, g); const gr = mk(B(0.72, 0.02, 0.035), std({ color: 0x3a2412, roughness: 0.9 }), 0, BT, 0, g); return gr;
+}
+const setGroove = (gr, c) => { c = Math.max(0.02, c); gr.scale.y = c; gr.position.y = BT + 0.0005 - 0.01 * c; };
+const grM = bench(BX.m), grL = bench(BX.l); setGroove(grM, 1);
+const master = buildTool('m_', false), learner = buildTool('', false), ghost = buildTool('g_', true);
+function pose(tool, bx, t, a, p, dz = 0, shake = 0) {
+  const w = Math.exp(-(((t - 0.5) / 0.3) ** 2)); tool.g.position.set(bx - 0.35 + 0.7 * t, BT + 0.035 - 0.06 * cl(p, 0, 1.4) * w, dz);
+  tool.g.rotation.z = Math.PI / 2 - (a * Math.PI) / 180 + shake * (Math.random() - 0.5); tool.g.rotation.x = shake * (Math.random() - 0.5) * 0.5;
+}
+// wood shavings
+const chips = [], chipGeo = B(0.03, 0.004, 0.014), chipMat = std({ color: 0xd9b98a, roughness: 0.8 }); let ci = 0;
+for (let i = 0; i < 80; i++) { const m = mk(chipGeo, chipMat, 0, -9, 0, scene); m.visible = false; m.userData = { life: 0, v: V3(0, 0, 0) }; chips.push(m); }
+function spawnChip(x, sp) { const m = chips[ci++ % chips.length], u = m.userData; m.visible = true; m.position.set(x, BT + 0.02, (Math.random() - 0.5) * 0.03); u.life = 1; u.v.set(-0.15 - Math.random() * 0.25 * sp, 0.45 + Math.random() * 0.4, (Math.random() - 0.5) * 0.3); m.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3); }
+function updChips(dt) { chips.forEach((m) => { if (!m.visible) return; const u = m.userData; u.life -= dt * 1.1; if (u.life <= 0 || m.position.y < BT + 0.005) { m.visible = false; return; } u.v.y -= 2.4 * dt; m.position.addScaledVector(u.v, dt); m.rotation.x += dt * 6; m.scale.setScalar(Math.min(1, u.life * 2)); }); }
+// Technique Fingerprint helix (KALA-DNA): gold strand = master, teal strand = apprentice; strand opens up where technique deviates
+const helix = new THREE.Group(); helix.position.set(0, 1.55, 0); helix.userData = { id: 'dna' }; scene.add(helix);
+const N = 40, HR = 0.16, hgeo = new THREE.SphereGeometry(0.024, 14, 14), hA = new THREE.InstancedMesh(hgeo, std({ roughness: 0.35, metalness: 0.3 }), N), hB = new THREE.InstancedMesh(hgeo, std({ roughness: 0.35, metalness: 0.1 }), N);
+helix.add(hA, hB); const rungGeo = new THREE.BufferGeometry(); rungGeo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(N * 6), 3));
+helix.add(new THREE.LineSegments(rungGeo, new THREE.LineBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.4 })));
+const cA = new THREE.Color(0xe0b04a), cT = new THREE.Color(0x2bb3c8), cR = new THREE.Color(0xe0483a), tmpM = new THREE.Matrix4(), tmpC = new THREE.Color();
+function updHelix(time) {
+  const ds = [S.devS.p, S.devS.a, S.devS.s, S.devS.t], rp = rungGeo.attributes.position;
+  for (let i = 0; i < N; i++) {
+    const u = i / N, ang = u * 2.3 * Math.PI * 2 + time * 0.3, y = (u - 0.5) * 1.1, dv = ds[Math.min(3, Math.floor(u * 4))], r2 = HR * (1 + dv * 0.9), ang2 = ang + Math.PI;
+    const ax = HR * Math.cos(ang), az = HR * Math.sin(ang), bx = r2 * Math.cos(ang2), bz = r2 * Math.sin(ang2);
+    hA.setMatrixAt(i, tmpM.makeTranslation(ax, y, az)); hB.setMatrixAt(i, tmpM.makeTranslation(bx, y, bz)); hA.setColorAt(i, cA); hB.setColorAt(i, tmpC.copy(cT).lerp(cR, dv));
+    rp.setXYZ(i * 2, ax, y, az); rp.setXYZ(i * 2 + 1, bx, y, bz);
+  }
+  hA.instanceMatrix.needsUpdate = hB.instanceMatrix.needsUpdate = hA.instanceColor.needsUpdate = hB.instanceColor.needsUpdate = rp.needsUpdate = true; helix.rotation.y = 0;
+}
+// data packets: master tool -> fingerprint -> apprentice tool
+const cvA = new THREE.QuadraticBezierCurve3(V3(BX.m, 1.05, 0), V3(-0.8, 1.9, 0.2), V3(0, 1.55, 0)), cvB = new THREE.QuadraticBezierCurve3(V3(0, 1.55, 0), V3(0.8, 1.9, 0.2), V3(BX.l, 1.05, 0));
+[[cvA, 0xe0b04a], [cvB, 0x2bb3c8]].forEach(([c, col]) => scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(c.getPoints(30)), new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.3 }))));
+const pk = []; for (let i = 0; i < 10; i++) { const A = i < 5, m = new THREE.Mesh(new THREE.SphereGeometry(0.017, 12, 12), new THREE.MeshBasicMaterial({ color: A ? 0xe0b04a : 0x2bb3c8 })); scene.add(m); pk.push({ m, c: A ? cvA : cvB, o: (i % 5) / 5 }); }
+
+// ---- labels / selection / camera ----
+const tag = (t, cls = '') => { const d = document.createElement('div'); d.className = 'tag ' + cls; d.textContent = t; labelsHost.appendChild(d); return d; };
+const L3 = [[tag('Master Artisan · earlier generation', 'big'), V3(BX.m, 1.45, 0)], [tag('Apprentice · new generation', 'big'), V3(BX.l, 1.45, 0)], [tag('Technique Fingerprint · KALA-DNA', 'big'), V3(0, 2.28, 0)]];
+const PL = { esp32: 'ESP32 · BLE / Wi-Fi', imu: 'IMU · accel + gyro', fsr: 'FSR grip pressure', force: 'Force sensor', motor: 'Vibration motor', led: 'LED cue ring', blade: 'Chisel blade', handle: 'Wood handle', mount: 'Mount + battery' };
+const partTags = Object.entries(PL).map(([id, t]) => [tag(t), id]);
+const idMap = { dna: helix }; for (const k in learner.P) if (learner.P[k].userData.id) idMap[learner.P[k].userData.id] = learner.P[k]; for (const k in master.P) if (master.P[k].userData.id) idMap[master.P[k].userData.id] = master.P[k];
+const outline = new THREE.Box3Helper(new THREE.Box3(), 0xffffff); outline.visible = false; scene.add(outline);
+let selected = null, inspect = false, goal = null; const bb = new THREE.Box3(), tb = new THREE.Box3(), v3 = new THREE.Vector3();
+const fly = (pos, target) => { goal = { pos, target }; }, VIEW = { tool: [V3(1.95, 1.15, 0.95), V3(1.45, 1.0, 0)], dna: [V3(0.4, 1.6, 2.3), V3(0, 1.55, 0)] };
+function select(id) { selected = id; outline.visible = !!id; renderInfo(); }
+const ray = new THREE.Raycaster(), ptr = new THREE.Vector2(); let down = null; const dom = renderer.domElement;
+dom.addEventListener('pointerdown', (e) => { down = [e.clientX, e.clientY]; goal = null; });
+dom.addEventListener('pointerup', (e) => {
+  if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 5) return; const r = dom.getBoundingClientRect();
+  ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(ptr, cam);
+  const hit = ray.intersectObjects([learner.g, master.g, helix], true)[0]; let id = null;
+  if (hit) { let o = hit.object; while (o && !o.userData.id) o = o.parent; id = o ? o.userData.id : null; } select(id);
+});
+function resize() { const w = host.clientWidth, h = host.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); cam.position.z = cam.position.z; }
+new ResizeObserver(resize).observe(host); resize();
+
+// ================= UI =================
+const tools = { p: ['s-p', 'o-p', (v) => `×${(+v).toFixed(2)} · peak ${(v * 8.5 / 1).toFixed(1)} N`], a: ['s-a', 'o-a', (v) => `${v > 0 ? '+' : ''}${Math.round(v)}°`], s: ['s-s', 'o-s', (v) => `×${(+v).toFixed(2)}`], t: ['s-t', 'o-t', (v) => `${(+v).toFixed(1)} s (master 4.0)`] };
+const keyOf = { p: 'pAmt', a: 'aOff', s: 'sGain', t: 'period' };
+for (const k in tools) $('#' + tools[k][0]).addEventListener('input', (e) => { if (!S.observe) S[keyOf[k]] = +e.target.value; });
+$('#c-obs').onchange = (e) => { S.observe = e.target.checked; ['p', 'a', 's', 't'].forEach((k) => ($('#' + tools[k][0]).disabled = S.observe)); };
+$('#c-auto').onchange = (e) => (S.auto = e.target.checked);
+$('#b-beg').onclick = () => { $('#c-obs').checked = false; $('#c-obs').onchange({ target: { checked: false } }); Object.assign(S, { pAmt: 1.45, aOff: 14, sGain: 0.7, period: 5.8, carve: 0, attempts: [], streak: 0 }); setGroove(grL, 0); };
+$('#b-rst').onclick = () => { Object.assign(S, { pAmt: 1, aOff: 0, sGain: 1, period: MT, carve: 0, attempts: [], streak: 0 }); };
+$('#tabs').onclick = (e) => { if (!e.target.dataset.c) return; S.ch = e.target.dataset.c; [...$('#tabs').children].forEach((b) => b.classList.toggle('on', b === e.target)); };
+function setInspect(v) { inspect = v; S.frozen = v; $('#b-insp').classList.toggle('on', v); $('#t-tool').classList.toggle('on', v); if (v) fly(...VIEW.tool); }
+$('#b-insp').onclick = () => setInspect(!inspect);
+$('#b-expl').onclick = (e) => { const on = !e.target.classList.contains('on'); e.target.classList.toggle('on', on); S.explTarget = on ? 1 : 0; if (on && !inspect) setInspect(true); };
+function reset() { setInspect(false); select(null); S.explTarget = 0; $('#b-expl').classList.remove('on'); fly(HOME.pos.clone(), HOME.target.clone()); ['t-tool', 't-dna'].forEach((i) => $('#' + i).classList.remove('on')); $('#t-model').classList.add('on'); }
+$('#b-reset').onclick = reset; $('#t-model').onclick = reset; $('#t-tool').onclick = () => { reset(); setInspect(true); }; $('#t-dna').onclick = () => { reset(); $('#t-dna').classList.add('on'); fly(...VIEW.dna); select('dna'); };
+$('#t-about').onclick = () => $('#about').classList.add('show'); $('#x-about').onclick = () => $('#about').classList.remove('show');
+const INFO = () => {
+  const tt = S.phaseL, m = (v) => `${v}`, F = (id) => ({
+    esp32: ['ESP32 MICROCONTROLLER', [['Link', 'BLE / Wi-Fi telemetry'], ['Mode', 'SIMULATION'], ['Rate', '50 Hz'], ['Samples', Math.round(S.samples).toLocaleString()]]],
+    imu: ['IMU · ACCEL + GYRO', [['Tool angle', lA(tt).toFixed(1) + '°'], ['Master angle', mA(tt).toFixed(1) + '°'], ['Speed', (lS(tt) * 20).toFixed(1) + ' cm/s']]],
+    fsr: ['FSR · HAND PRESSURE', [['Grip pressure', (lP(tt) * 8.5).toFixed(1) + ' N'], ['Master', (mP(tt) * 8.5).toFixed(1) + ' N'], ['Sensors', '2 × FSR pad']]],
+    force: ['FORCE SENSOR', [['Blade force', (lP(tt) * 10).toFixed(1) + ' N'], ['Location', 'Between ferrule and handle']]],
+    motor: ['VIBRATION MOTOR', [['Role', 'Haptic correction cue'], ['State', S.cue.on ? 'Pulsing' : 'Idle']]],
+    led: ['LED CUE RING', [['Colour', S.score >= 85 ? 'Green · matched' : S.score >= 60 ? 'Amber · adjust' : 'Red · off-technique'], ['Score', Math.round(S.score) + ' / 100']]],
+    blade: ['CHISEL BLADE', [['Material', 'Hardened steel'], ['Role', 'Cuts the workpiece']]], handle: ['WOOD HANDLE', [['Material', 'Traditional hardwood'], ['Carries', 'FSR pads + module']]], mount: ['MOUNT + BATTERY', [['Role', 'Clip-on carrier'], ['Power', 'Li-Po pouch']]],
+    dna: ['TECHNIQUE FINGERPRINT', [['Pressure match', Math.round((1 - S.devS.p) * 100) + '%'], ['Angle match', Math.round((1 - S.devS.a) * 100) + '%'], ['Speed match', Math.round((1 - S.devS.s) * 100) + '%'], ['Timing match', Math.round((1 - S.devS.t) * 100) + '%']]],
+  }[id.replace(/^m_/, '')]); return F;
+};
+function renderInfo() {
+  const el = $('#info'); if (!selected) return el.classList.add('hidden'); const f = INFO()(selected); if (!f) return el.classList.add('hidden');
+  const master = selected.startsWith('m_'); el.classList.remove('hidden'); el.innerHTML = `<h3>${master ? 'MASTER · ' : ''}${f[0]}</h3>` + f[1].map(([a, b]) => `<p>${a}<b>${b}</b></p>`).join('');
+}
+function radar() {
+  const c = $('#radar'), g = c.getContext('2d'), W = c.width, H = c.height, cx = W / 2, cy = H / 2 + 6, R = Math.min(W, H) / 2 - 42, mut = getComputedStyle(document.documentElement).getPropertyValue('--mut'), ax = ['Pressure', 'Angle', 'Speed', 'Timing'], m = [1 - S.devS.p, 1 - S.devS.a, 1 - S.devS.s, 1 - S.devS.t];
+  g.clearRect(0, 0, W, H); g.strokeStyle = 'rgba(128,128,128,.3)'; g.fillStyle = mut; g.font = '20px sans-serif'; g.textAlign = 'center';
+  [0.5, 1].forEach((r) => { g.beginPath(); ax.forEach((_, i) => { const a = (i * Math.PI) / 2 - Math.PI / 2; g[i ? 'lineTo' : 'moveTo'](cx + R * r * Math.cos(a), cy + R * r * Math.sin(a)); }); g.closePath(); g.stroke(); });
+  ax.forEach((n, i) => { const a = (i * Math.PI) / 2 - Math.PI / 2; g.fillText(n, cx + (R + 26) * Math.cos(a), cy + (R + 26) * Math.sin(a) + 6); });
+  g.beginPath(); m.forEach((v, i) => { const a = (i * Math.PI) / 2 - Math.PI / 2; g[i ? 'lineTo' : 'moveTo'](cx + R * v * Math.cos(a), cy + R * v * Math.sin(a)); }); g.closePath(); g.fillStyle = 'rgba(43,179,200,.3)'; g.fill(); g.strokeStyle = '#2bb3c8'; g.lineWidth = 3; g.stroke();
+  g.beginPath(); ax.forEach((_, i) => { const a = (i * Math.PI) / 2 - Math.PI / 2; g[i ? 'lineTo' : 'moveTo'](cx + R * Math.cos(a), cy + R * Math.sin(a)); }); g.closePath(); g.strokeStyle = '#e0b04a'; g.setLineDash([8, 6]); g.stroke(); g.setLineDash([]);
+}
+function curve() {
+  const c = $('#curve'), g = c.getContext('2d'), W = c.width, H = c.height, [fm, fl, lo, hi] = { p: [mP, lP, 0, 1.4], a: [mA, lA, 15, 75], s: [mS, lS, 0, 1.6] }[S.ch]; g.clearRect(0, 0, W, H);
+  const Y = (v) => H - 10 - ((v - lo) / (hi - lo)) * (H - 20), draw = (f, col, w) => { g.beginPath(); for (let i = 0; i <= 100; i++) { const x = (i / 100) * W; g[i ? 'lineTo' : 'moveTo'](x, Y(f(i / 100))); } g.strokeStyle = col; g.lineWidth = w; g.stroke(); };
+  draw(fm, '#e0b04a', 3); draw(fl, '#2bb3c8', 4); [[S.phaseM, '#e0b04a'], [S.phaseL, '#2bb3c8']].forEach(([p, col]) => { g.strokeStyle = col; g.lineWidth = 2; g.setLineDash([6, 6]); g.beginPath(); g.moveTo(p * W, 0); g.lineTo(p * W, H); g.stroke(); g.setLineDash([]); });
+}
+let uiT = 0, shownScore = 100; const flowEls = [...document.querySelectorAll('#flow span')];
+function ui(dt) {
+  for (const k in tools) { const key = keyOf[k], el = $('#' + tools[k][0]); if (document.activeElement !== el) el.value = S[key]; $('#' + tools[k][1]).textContent = tools[k][2](S[key]); }
+  shownScore += (S.score - shownScore) * Math.min(1, dt * 6); $('#score').textContent = Math.round(shownScore); $('#strokes').textContent = S.attempts.length + ' strokes';
+  $('#cue-t').textContent = S.cue.txt; $('#hap').textContent = 'Haptic: ' + (S.cue.on ? 'pulsing · LED ' + (S.score >= 60 ? 'amber' : 'red') : 'idle · LED green'); $('#hap').classList.toggle('pulse', S.cue.on);
+  const col = S.score >= 85 ? '#1e9e4a' : S.score >= 60 ? '#e39b00' : '#d93025'; $('#dot').style.background = col; $('#dot').style.color = col;
+  $('#hist').innerHTML = S.attempts.map((v) => `<u style="height:${v * 0.44}px;background:${v >= 85 ? '#1e9e4a' : v >= 60 ? '#e39b00' : '#d93025'}"></u>`).join('');
+  const st = S.observe ? 0 : S.score < 60 ? 1 : S.score >= 85 && S.streak >= 2 ? 3 : 2; [...$('#steps').children].forEach((s, i) => s.classList.toggle('on', i === st));
+  radar(); curve(); if (selected) renderInfo();
+}
+// one-shot data-flow highlight each second
+setInterval(() => flowEls.forEach((s, i) => { setTimeout(() => s.classList.add('on'), i * 160); setTimeout(() => s.classList.remove('on'), i * 160 + 320); }), 1000);
+
+// ================= LOOP =================
+const clock = new THREE.Clock(); let accM = 0, accL = 0, reported = false;
+function frame() {
+  requestAnimationFrame(frame); const dt = Math.min(clock.getDelta(), 0.05), time = clock.elapsedTime, k = 1 - Math.exp(-dt * 4);
+  updateModel(dt); S.expl += ((S.explTarget || 0) - S.expl) * k; const tl = S.frozen ? 0.5 : S.phaseL;
+  pose(master, BX.m, S.phaseM, mA(S.phaseM), mP(S.phaseM)); pose(ghost, BX.l, S.phaseM, mA(S.phaseM), mP(S.phaseM), -0.03);
+  pose(learner, BX.l, tl, lA(tl), lP(tl), 0, S.cue.on && !S.frozen ? 0.05 : 0); learner.ledMat.emissive.set(S.score >= 85 ? 0x1e9e4a : S.score >= 60 ? 0xe39b00 : 0xd93025);
+  for (const id in learner.P) { const p = learner.P[id]; if (p.userData.ex) p.position.copy(p.userData.ex).multiplyScalar(S.expl); } learner.P.wires.visible = S.expl < 0.05; ghost.g.visible = !S.frozen;
+  setGroove(grL, S.carve);
+  [[BX.m, S.phaseM, mP(S.phaseM), mS(S.phaseM), 'm'], [BX.l, tl, lP(tl), lS(tl), 'l']].forEach(([bx, t, p, s, w]) => { if (S.frozen && w === 'l') return; if (t > 0.2 && t < 0.8) { const r = 26 * s * p; if (w === 'm') accM += r * dt; else accL += r * dt; const a = w === 'm' ? accM : accL; if (a >= 1) { spawnChip(bx - 0.35 + 0.7 * t, s); if (w === 'm') accM = 0; else accL = 0; } } });
+  updChips(dt); updHelix(time); pk.forEach((q) => q.m.position.copy(q.c.getPoint((time * 0.25 + q.o) % 1)));
+  if (goal) { cam.position.lerp(goal.pos, k * 0.9); controls.target.lerp(goal.target, k * 0.9); if (cam.position.distanceTo(goal.pos) < 0.01) goal = null; } controls.update();
+  if (selected && idMap[selected]) { bb.makeEmpty(); idMap[selected].updateMatrixWorld(true); tb.setFromObject(idMap[selected]); bb.union(tb); outline.box.copy(bb); outline.visible = true; }
+  const W = host.clientWidth, H = host.clientHeight, proj = (p, el, dy) => { v3.copy(p).project(cam); const vis = v3.z < 1; el.style.display = vis ? 'block' : 'none'; el.style.transform = `translate(-50%,-50%) translate(${(v3.x * 0.5 + 0.5) * W}px,${(-v3.y * 0.5 + 0.5) * H + dy}px)`; };
+  L3.forEach(([el, p]) => proj(p, el, 0)); partTags.forEach(([el, id]) => { if (!inspect) { el.style.display = 'none'; return; } const o = learner.P[id]; o.updateMatrixWorld(true); tb.setFromObject(o).getCenter(v3); proj(v3.clone(), el, -14); });
+  uiT += dt; if (uiT > 0.1) { ui(uiT); uiT = 0; }
+  renderer.render(scene, cam); if (!reported) { reported = true; window.hgStatus && window.hgStatus(`3D running · ${renderer.info.render.triangles} triangles`); }
+}
+frame();
+
+</script>
+<script>
+(function(){
+var V='0.164.1',bases=['./node_modules/three/','https://cdn.jsdelivr.net/npm/three@'+V+'/','https://unpkg.com/three@'+V+'/'];
+function banner(m){var b=document.getElementById('err');if(!b){b=document.createElement('div');b.id='err';document.body.appendChild(b);}b.textContent=m;}
+window.hgBanner=banner;
+window.hgStatus=function(m){var s=document.getElementById('st');if(!s){s=document.createElement('div');s.id='st';document.body.appendChild(s);}s.textContent=m;};
+window.addEventListener('error',function(e){banner('Error: '+e.message);});
+window.addEventListener('unhandledrejection',function(e){banner('Error: '+(e.reason&&e.reason.message||e.reason));});
+hgStatus('Starting…');
+var c=document.createElement('canvas');if(!(c.getContext('webgl2')||c.getContext('webgl')))banner('WebGL is disabled. Enable hardware acceleration in your browser settings, or try Edge/Firefox.');
+function ok(u){return fetch(u,{method:'HEAD'}).then(function(r){return r.ok;},function(){return false;});}
+(async function(){
+ for(var i=0;i<bases.length;i++){var b=bases[i];
+  if(!(await ok(b+'build/three.module.js')))continue;
+  var m=document.createElement('script');m.type='importmap';
+  m.textContent=JSON.stringify({imports:{three:b+'build/three.module.js','three/addons/':b+'examples/jsm/'}});
+  document.head.appendChild(m);hgStatus('three.js source: '+b);
+  var s=document.createElement('script');s.type='module';s.textContent=document.getElementById('app').textContent;document.body.appendChild(s);return;}
+ banner('Could not load three.js. Check your internet connection, or run "npm install three@'+V+'" next to this file and serve it with python -m http.server 5500.');
+})();
+})();
+</script></body></html>
